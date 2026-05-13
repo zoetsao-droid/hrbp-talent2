@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR 六週追蹤工具</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+:root{
+  --ink:#18181A;--ink2:#3A3A36;--ink3:#5A5A56;--ink4:#9A9A92;
+  --border:#E4E2DA;--border2:#C8C6BE;
+  --bg:#F8F8F5;--surface:#FFF;--surface2:#F4F3EE;
+  --teal:#0F6E56;--teal2:#1D9E75;--teal-bg:#E1F5EE;--teal-bg2:#C4EBD8;
+  --purple:#4A42A8;--purple-bg:#EEEDFC;
+  --amber:#9C6010;--amber-bg:#FBF0DC;
+  --red:#B72B2B;--red-bg:#FDECEB;
+  --green:#2A6B3A;--green-bg:#EAF4ED;
+  --done-bg:#EAF4ED;--done:#2A6B3A;
+  --prog-bg:#EEF0FB;--prog:#4A42A8;
+  --block-bg:#FDECEB;--block:#B72B2B;
+  --none-bg:#F4F3EE;--none:#9A9A92;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.75;}
+
+/* ─ Header ─ */
+.app-header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(248,248,245,.95);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;height:52px;gap:16px;
+}
+.header-left{display:flex;align-items:center;gap:14px;}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1.5px;color:var(--ink4);white-space:nowrap;}
+.week-selector{display:flex;align-items:center;gap:6px;}
+.week-selector label{font-size:11px;color:var(--ink4);}
+.week-selector select{
+  font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:500;
+  border:1px solid var(--border2);border-radius:6px;background:var(--surface);
+  color:var(--ink);padding:4px 8px;cursor:pointer;
+}
+.tab-bar{display:flex;gap:2px;}
+.tab-btn{
+  padding:6px 16px;border-radius:20px;font-size:12px;font-weight:500;
+  border:none;background:transparent;color:var(--ink4);cursor:pointer;
+  font-family:'Noto Sans TC',sans-serif;transition:all .15s;
+}
+.tab-btn:hover{background:var(--border);color:var(--ink2);}
+.tab-btn.active{background:var(--ink);color:#fff;}
+.header-right{display:flex;align-items:center;gap:8px;}
+.edit-btn{
+  padding:5px 12px;border-radius:6px;font-size:11px;font-weight:500;
+  border:1px solid var(--border2);background:var(--surface);color:var(--ink3);
+  cursor:pointer;font-family:'Noto Sans TC',sans-serif;transition:all .15s;
+}
+.edit-btn.active{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);}
+.save-indicator{font-size:11px;color:var(--ink4);opacity:0;transition:opacity .3s;}
+.save-indicator.show{opacity:1;}
+
+/* ─ Main ─ */
+.main{max-width:860px;margin:0 auto;padding:28px 28px 80px;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+/* ─ Edit mode ─ */
+body.edit-mode [contenteditable]{
+  outline:none;background:rgba(186,117,23,.06);
+  border-radius:3px;cursor:text;
+  box-shadow:0 0 0 1px rgba(186,117,23,.25);
+}
+
+/* ─ Section label ─ */
+.sec-label{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--ink4);margin-bottom:14px;
+  padding-bottom:7px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+
+/* ═══════ TAB 1: 問題地圖 ═══════ */
+.root-box{
+  background:var(--ink);color:#fff;border-radius:10px;
+  padding:22px 26px;margin-bottom:20px;
+}
+.root-box .rb-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.4);text-transform:uppercase;margin-bottom:8px;}
+.root-q{font-size:17px;font-weight:600;line-height:1.4;color:#fff;}
+
+.cluster-simple{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+.cs-row{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:8px;
+  display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:12px;
+  padding:11px 14px;cursor:pointer;transition:border-color .15s;
+}
+.cs-row:hover{border-color:var(--border2);}
+.cs-row.prio-urgent{border-color:var(--red);}
+.cs-row.prio-important{border-color:var(--amber);}
+.cs-row.prio-later{border-color:var(--border2);}
+.cs-icon{font-size:16px;text-align:center;}
+.cs-text h4{font-size:13px;font-weight:500;margin-bottom:2px;}
+.cs-text p{font-size:11.5px;color:var(--ink3);line-height:1.5;}
+.cs-prio-btns{display:flex;gap:4px;flex-shrink:0;}
+.cpb{
+  padding:3px 8px;border-radius:4px;font-size:10.5px;border:1px solid var(--border2);
+  background:var(--bg);cursor:pointer;font-family:'Noto Sans TC',sans-serif;
+  transition:all .12s;white-space:nowrap;color:var(--ink3);
+}
+.cpb:hover{border-color:var(--ink4);}
+.cpb.sel-urgent{background:var(--red-bg);border-color:var(--red);color:var(--red);font-weight:500;}
+.cpb.sel-important{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);font-weight:500;}
+.cpb.sel-later{background:var(--none-bg);border-color:var(--border2);color:var(--none);font-weight:500;}
+
+.bet-selection{margin-bottom:20px;}
+.bet-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;}
+.bet-card{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:10px;
+  padding:16px;cursor:pointer;transition:all .15s;position:relative;
+}
+.bet-card:hover{border-color:var(--border2);}
+.bet-card.selected{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-bg);}
+.bet-card.suggested{border-color:var(--teal2);}
+.sug-badge{
+  position:absolute;top:-9px;left:12px;
+  background:var(--teal);color:#fff;
+  font-size:9px;font-weight:600;padding:2px 8px;border-radius:8px;
+  font-family:'IBM Plex Mono',monospace;letter-spacing:.5px;display:none;
+}
+.bet-card.suggested .sug-badge{display:block;}
+.bet-card .bc-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink4);letter-spacing:1px;margin-bottom:7px;}
+.bet-card h3{font-size:13px;font-weight:500;margin-bottom:6px;line-height:1.4;}
+.bet-card p{font-size:11.5px;color:var(--ink3);line-height:1.55;}
+.bet-card .bc-check{
+  position:absolute;top:12px;right:12px;
+  width:20px;height:20px;background:var(--teal);border-radius:50%;
+  display:none;align-items:center;justify-content:center;color:#fff;font-size:11px;
+}
+.bet-card.selected .bc-check{display:flex;}
+
+.addon-row{
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:11px 14px;display:flex;align-items:center;gap:10px;
+}
+.addon-check{
+  width:18px;height:18px;border:1.5px solid var(--border2);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+  transition:all .12s;font-size:11px;
+}
+.addon-check.checked{background:var(--teal);border-color:var(--teal);color:#fff;}
+.addon-row .ar-text h4{font-size:12px;font-weight:500;margin-bottom:2px;}
+.addon-row .ar-text p{font-size:11.5px;color:var(--ink3);}
+
+.decision-summary{
+  background:var(--ink);color:#fff;border-radius:10px;padding:20px 24px;
+}
+.ds-title{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:14px;}
+.ds-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.ds-item .di-label{font-size:10px;font-family:'IBM Plex Mono',monospace;color:rgba(255,255,255,.4);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.ds-item .di-val{font-size:13px;color:rgba(255,255,255,.55);font-style:italic;}
+.ds-item .di-val.filled{color:rgba(255,255,255,.95);font-style:normal;font-weight:500;}
+
+/* ═══════ TAB 2: 六週計畫 ═══════ */
+.plan-header{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:16px 20px;margin-bottom:20px;
+}
+.plan-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.plan-header-top h2{font-size:15px;font-weight:600;}
+.plan-header-top .ph-bet{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 10px;
+  border-radius:4px;background:var(--teal-bg);color:var(--teal);font-weight:500;
+}
+.progress-bar-wrap{display:flex;align-items:center;gap:10px;}
+.progress-bar-wrap span{font-size:11px;color:var(--ink4);flex-shrink:0;}
+.progress-bar-outer{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-bar-inner{height:100%;background:var(--teal2);border-radius:3px;transition:width .3s;}
+
+.usage-guide{
+  background:var(--teal-bg);border:1px solid var(--teal-bg2);border-radius:8px;
+  padding:12px 16px;margin-bottom:20px;font-size:12px;color:var(--teal);line-height:1.7;
+}
+.usage-guide strong{font-weight:500;}
+
+.week-cards{display:flex;flex-direction:column;gap:10px;}
+.week-card{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;
+}
+.week-card.current-week{border-color:var(--teal);}
+.wc-header{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;
+  padding:13px 16px;cursor:pointer;
+}
+.wc-header:hover{background:var(--surface2);}
+.wc-num{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;
+  width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--surface2);color:var(--ink3);flex-shrink:0;
+}
+.week-card.current-week .wc-num{background:var(--teal);color:#fff;}
+.wc-title{font-size:13px;font-weight:500;}
+.wc-sub{font-size:11.5px;color:var(--ink4);}
+.wc-right{display:flex;align-items:center;gap:8px;}
+.wc-progress{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink4);}
+.wc-chevron{color:var(--ink4);font-size:13px;transition:transform .2s;}
+.week-card.open .wc-chevron{transform:rotate(180deg);}
+
+.wc-body{display:none;border-top:1px solid var(--border);}
+.week-card.open .wc-body{display:block;}
+
+.wc-section{padding:14px 16px;border-bottom:1px solid var(--border);}
+.wc-section:last-child{border-bottom:none;}
+.wc-sec-label{
+  font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--ink4);margin-bottom:10px;font-weight:500;
+}
+.wc-problem-text{
+  font-size:13px;font-weight:500;color:var(--ink);line-height:1.5;
+  min-height:20px;
+}
+
+.task-list{display:flex;flex-direction:column;gap:6px;}
+.task-row{
+  display:flex;align-items:flex-start;gap:8px;
+  padding:7px 10px;border-radius:6px;background:var(--bg);
+}
+.task-status{
+  width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  font-size:11px;flex-shrink:0;margin-top:1px;transition:all .15s;
+  background:var(--surface);
+}
+.task-status.done{background:var(--done-bg);border-color:var(--done);color:var(--done);}
+.task-status.in-progress{background:var(--prog-bg);border-color:var(--prog);color:var(--prog);}
+.task-status.blocked{background:var(--block-bg);border-color:var(--block);color:var(--block);}
+.task-text{font-size:12.5px;color:var(--ink2);line-height:1.55;flex:1;min-height:18px;}
+.task-text.done-text{text-decoration:line-through;color:var(--ink4);}
+
+.wc-output{
+  font-size:12px;color:var(--ink3);line-height:1.65;min-height:16px;
+}
+
+.jeff-box{
+  background:var(--purple-bg);border-radius:7px;padding:12px 14px;
+}
+.jeff-box .jb-label{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--purple);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;font-weight:500;}
+.jeff-format{font-size:12px;color:var(--purple);line-height:1.7;white-space:pre-line;min-height:40px;}
+.jeff-actions{display:flex;gap:6px;margin-top:8px;}
+.copy-btn{
+  padding:4px 10px;border-radius:5px;font-size:11px;border:1px solid rgba(74,66,168,.3);
+  background:rgba(74,66,168,.08);color:var(--purple);cursor:pointer;
+  font-family:'Noto Sans TC',sans-serif;transition:all .12s;
+}
+.copy-btn:hover{background:rgba(74,66,168,.15);}
+.copy-btn.copied{background:var(--done-bg);border-color:var(--done);color:var(--done);}
+
+.status-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.sl-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink3);}
+.sl-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid;}
+
+/* ═══════ TAB 3: Jeff 同步 ═══════ */
+.jeff-sync-header{
+  background:var(--purple-bg);border-radius:10px;padding:18px 20px;margin-bottom:20px;
+}
+.jsh-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--purple);margin-bottom:8px;font-weight:500;}
+.jsh-explain{font-size:12.5px;color:var(--purple);line-height:1.7;}
+
+.sync-block{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  margin-bottom:12px;overflow:hidden;
+}
+.sb-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 16px;border-bottom:1px solid var(--border);
+}
+.sb-title{font-size:13px;font-weight:500;}
+.sb-week-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;background:var(--teal-bg);color:var(--teal);padding:2px 8px;border-radius:3px;}
+.sb-body{padding:14px 16px;}
+
+.sync-template{
+  font-size:12.5px;color:var(--ink2);line-height:1.8;white-space:pre-line;
+  background:var(--surface2);border-radius:7px;padding:14px 16px;margin-bottom:10px;
+  min-height:80px;
+}
+.sync-actions{display:flex;gap:8px;}
+.sync-btn{
+  padding:6px 14px;border-radius:6px;font-size:12px;border:1px solid var(--border2);
+  background:var(--surface);color:var(--ink3);cursor:pointer;
+  font-family:'Noto Sans TC',sans-serif;transition:all .12s;
+}
+.sync-btn:hover{border-color:var(--ink4);color:var(--ink2);}
+.sync-btn.primary{background:var(--purple);border-color:var(--purple);color:#fff;}
+.sync-btn.primary:hover{background:var(--purple);}
+
+.how-to-use{
+  background:var(--surface2);border-radius:8px;padding:16px 18px;margin-bottom:20px;
+}
+.htu-title{font-size:12px;font-weight:500;margin-bottom:10px;color:var(--ink2);}
+.htu-steps{display:flex;flex-direction:column;gap:8px;}
+.htu-step{display:flex;gap:10px;font-size:12px;color:var(--ink3);line-height:1.55;}
+.htu-step .hs-num{
+  width:20px;height:20px;background:var(--ink);color:#fff;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;
+  font-family:'IBM Plex Mono',monospace;
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-left">
+    <div class="logo">HR 六週追蹤 · Zoe × Jeff</div>
+    <div class="week-selector">
+      <label>目前第</label>
+      <select id="currentWeekSelect" onchange="setCurrentWeek(this.value)">
+        <option value="1">W1</option><option value="2">W2</option>
+        <option value="3">W3</option><option value="4">W4</option>
+        <option value="5">W5</option><option value="6">W6</option>
+      </select>
+      <label>週</label>
+    </div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('t1')">問題與決議</button>
+    <button class="tab-btn" onclick="switchTab('t2')">六週計畫</button>
+    <button class="tab-btn" onclick="switchTab('t3')">Jeff 同步</button>
+  </div>
+  <div class="header-right">
+    <span class="save-indicator" id="saveIndicator">已儲存 ✓</span>
+    <button class="edit-btn" id="editBtn" onclick="toggleEdit()">✏ 編輯模式</button>
+  </div>
+</header>
+
+<main class="main">
+
+<!-- ═══ TAB 1 ═══ -->
+<div class="tab-panel active" id="t1">
+
+  <div style="margin-bottom:20px;">
+    <div class="sec-label">根本問題</div>
+    <div class="root-box">
+      <div class="rb-label">The Core Question</div>
+      <div class="root-q" id="rootQ" contenteditable="false">在 AI + Squad 的時代，什麼樣的人對 Whoscall 有價值？這個定義，我們還沒有說清楚。</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px;">
+    <div class="sec-label">問題叢集 <span style="font-family:inherit;font-size:11px;letter-spacing:0;text-transform:none;color:var(--ink4);">— 點選標記緊急程度</span></div>
+    <div class="cluster-simple" id="clusterList">
+      <!-- rendered by JS -->
+    </div>
+  </div>
+
+  <div class="bet-selection" style="margin-bottom:20px;">
+    <div class="sec-label">六週押什麼 <span id="betSuggestionText" style="font-family:inherit;font-size:11px;letter-spacing:0;text-transform:none;color:var(--ink4);"></span></div>
+    <div class="bet-cards" id="betCards"><!-- rendered by JS --></div>
+    <div class="addon-row">
+      <div class="addon-check" id="addonCheck" onclick="toggleAddon()"></div>
+      <div class="ar-text">
+        <h4>並行：招募使命對齊維度（2週，本週就可以開工）</h4>
+        <p>不管選哪個主 Bet，這個可以同時跑，兩週就有出口。</p>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="sec-label">今天的決議</div>
+    <div class="decision-summary" id="decisionSummary">
+      <div class="ds-title">HR Try Run · 第一輪</div>
+      <div class="ds-grid">
+        <div class="ds-item"><div class="di-label">主要 Bet</div><div class="di-val" id="ds-bet">尚未選擇</div></div>
+        <div class="ds-item"><div class="di-label">最緊急問題</div><div class="di-val" id="ds-urgent">尚未標記</div></div>
+        <div class="ds-item"><div class="di-label">招募並行</div><div class="di-val" id="ds-addon">尚未決定</div></div>
+        <div class="ds-item"><div class="di-label">目前第幾週</div><div class="di-val filled" id="ds-week">W1</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB 2 ═══ -->
+<div class="tab-panel" id="t2">
+
+  <div class="usage-guide">
+    <strong>怎麼使用這個頁面：</strong>
+    每週開始時，打開這個工具，把「目前第幾週」調到正確的週數。展開當週的卡片，更新每個任務的進度狀態，填寫要告訴 Jeff 的重點。六週結束就有完整的執行記錄。
+  </div>
+
+  <div class="plan-header">
+    <div class="plan-header-top">
+      <h2 id="planTitle">請先在「問題與決議」頁面選擇 Bet 方向</h2>
+      <div class="ph-bet" id="planBetTag">-</div>
+    </div>
+    <div class="progress-bar-wrap">
+      <span>整體進度</span>
+      <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar" style="width:0%"></div></div>
+      <span id="progressText">0%</span>
+    </div>
+  </div>
+
+  <div class="status-legend">
+    <div class="sl-item"><div class="sl-dot" style="background:var(--none-bg);border-color:var(--border2);"></div>未開始</div>
+    <div class="sl-item"><div class="sl-dot" style="background:var(--prog-bg);border-color:var(--prog);"></div>進行中</div>
+    <div class="sl-item"><div class="sl-dot" style="background:var(--done-bg);border-color:var(--done);"></div>完成</div>
+    <div class="sl-item"><div class="sl-dot" style="background:var(--block-bg);border-color:var(--block);"></div>卡住了</div>
+  </div>
+
+  <div class="week-cards" id="weekCards"><!-- rendered by JS --></div>
+</div>
+
+<!-- ═══ TAB 3 ═══ -->
+<div class="tab-panel" id="t3">
+
+  <div class="how-to-use" style="margin-bottom:20px;">
+    <div class="htu-title">這個頁面怎麼配合日常使用</div>
+    <div class="htu-steps">
+      <div class="htu-step"><div class="hs-num">1</div><div>每週更新「六週計畫」頁的任務進度</div></div>
+      <div class="htu-step"><div class="hs-num">2</div><div>在這裡看本週自動生成的 Jeff 同步格式，確認或修改內容</div></div>
+      <div class="htu-step"><div class="hs-num">3</div><div>複製後貼到 Slack / Confluence / 寄信給 Jeff，或在週會上念出來</div></div>
+      <div class="htu-step"><div class="hs-num">4</div><div>六週結束時，這頁會有完整的執行記錄可以帶進 Retro</div></div>
+    </div>
+  </div>
+
+  <div class="jsh-explain" style="margin-bottom:16px;font-size:13px;color:var(--ink3);">
+    以下是本週同步 Jeff 的建議格式。可以在編輯模式下直接修改文字。
+  </div>
+
+  <div id="jeffSyncBlocks"><!-- rendered by JS --></div>
+</div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+
+const CLUSTERS = [
+  { id:'define',   icon:'📐', title:'標準還沒有被說清楚', desc:'好的 Product Staff 長什麼樣子？這個定義缺位，所有制度都是在舊地基上蓋新房子。' },
+  { id:'recognize',icon:'👁',  title:'制度看不到對的行為', desc:'跨 Squad 貢獻不可見，主動幫別的 Squad 的人被評為「中等」。' },
+  { id:'transform',icon:'⚙️', title:'EM 不知道新角色是什麼', desc:'EM 的 KPI 還是帶人和準時交付，不知道 Squad 化後的成功標準，選擇觀望。' },
+  { id:'enter',    icon:'🚪', title:'招募源頭沒有篩使命對齊', desc:'面試評技術能力，但沒有評「能不能在 low ego 環境協作」，進來才發現不對。' },
+];
+
+const BETS = [
+  { id:'A', label:'Big Bet · 6W', title:'先定義好表現的標準', desc:'六週全押在「Good Performer」的定義上。有了定義，其他制度才有地基。' },
+  { id:'B', label:'Big Bet · 6W', title:'先讓 EM 知道新角色', desc:'六週全押 EM 轉型共設計。EM 是最大風險，也是最大槓桿。' },
+  { id:'C', label:'Small Bet · 2W 先行', title:'先動最快能動的', desc:'招募 Small Bet 先跑，兩週有出口，用真實資料確認方向後再押六週 Bet。' },
+];
+
+const WEEKS_DATA = {
+  A: [
+    {
+      num:1, theme:'問題確認與訪談',
+      problem:'現行制度最卡在哪裡？用真實案例說清楚。',
+      tasks:['安排並完成 4–6 位 EM / Squad PM 訪談（各 30 分鐘）','準備訪談問題（聚焦：現行制度哪個地方最卡？）','請 Jeff 本週告知 Reiny 試驗方向（Try Run 定調）'],
+      output:'訪談記錄 + 核心痛點清單（至少 3 個真實案例）',
+      jeff:'📋 W1 進度更新\n✅ 本週完成：HR Try Run 正式啟動，完成 ___ 位 EM/PM 訪談\n🔍 初步發現：___（填入最關鍵的一個痛點案例）\n📅 下週計畫：整理訪談，起草兩層績效框架\n❓需要你決定：Reiny 溝通由你先打招呼，還是由 Zoe 直接約？'
+    },
+    {
+      num:2, theme:'框架起草',
+      problem:'「個人交付」和「使命貢獻」各佔幾成？底線在哪？',
+      tasks:['整理訪談，歸納 3–5 個核心痛點案例','起草兩層績效框架（個人交付 + 使命貢獻）','列出使命貢獻的具體行為清單（跨 Squad、知識沉澱、agent 委派）'],
+      output:'框架草稿 v0.1（一頁）',
+      jeff:'📋 W2 進度更新\n✅ 本週完成：兩層績效框架草稿完成\n📊 框架方向：個人交付 ___% + 使命貢獻 ___%\n🔍 使命貢獻的具體行為包含：___\n📅 下週計畫：設計行為卡，送 Squad PM review\n❓需要你確認：使命貢獻的底線比例，你覺得 30% 合適嗎？'
+    },
+    {
+      num:3, theme:'行為卡設計與 review',
+      problem:'使命對齊的「好行為」能不能用案例描述，而非抽象詞彙？',
+      tasks:['設計 Good Performer 行為卡（案例描述，非抽象指標）','送 1–2 位 Squad PM / EM 做 review','收集第一輪意見回饋'],
+      output:'行為卡草稿 v0.1 + review 回饋清單',
+      jeff:'📋 W3 進度更新\n✅ 本週完成：Good Performer 行為卡設計完成，已送 review\n📄 行為卡包含：___ 個場景案例\n💬 Review 回饋：___（最重要的一條意見）\n📅 下週計畫：根據回饋修訂，準備在 1 個 Squad 試跑\n❓需要你決定：哪個 Squad 最適合第一輪試跑？'
+    },
+    {
+      num:4, theme:'小規模試跑',
+      problem:'主管能不能用這個框架做出有意義的評估？',
+      tasks:['選定 1 個 Squad，主管用新框架評估一輪','觀察填寫過程，收集使用困難','確認評分邏輯是否清楚易用'],
+      output:'試跑資料 + 使用回饋清單',
+      jeff:'📋 W4 進度更新\n✅ 本週完成：在 ___ Squad 試跑新框架\n📊 試跑結果：___ 位主管使用，主要回饋是___\n⚠️ 遇到的問題：___\n📅 下週計畫：根據試跑回饋修訂框架\n❓需要你知道：___（填入最重要的一個發現）'
+    },
+    {
+      num:5, theme:'修訂與擴散評估',
+      problem:'哪些部分可以擴散到更多 Squad？哪些還需要再修？',
+      tasks:['根據試跑回饋修訂框架（v0.2）','評估哪些部分準備好可以擴散','確認下一輪的評估問題設計'],
+      output:'框架 v0.2 + 擴散評估報告',
+      jeff:'📋 W5 進度更新\n✅ 本週完成：框架修訂完成（v0.2）\n📊 修訂重點：___\n✅ 準備好擴散的部分：___\n🔧 還需要再調整的：___\n📅 下週：完成草案，準備 W6 Retro\n❓需要你確認：Retro 時間確認？'
+    },
+    {
+      num:6, theme:'Retro 與下一步決議',
+      problem:'我們學到了什麼？下一輪要做什麼？',
+      tasks:['完成正式草案文件','與 Jeff 召開六週 Retro','決定是否進入第二輪，或擴大到更多 Squad'],
+      output:'草案文件 + Retro 記錄 + 下一輪 Shape 候選清單',
+      jeff:'📋 W6 Retro 摘要\n✅ 六週完成事項：___\n📊 主要學習：___（最重要的三件事）\n🎯 下一步建議：___\n📅 建議下一輪啟動時間：___\n❓需要你決定：第二輪的主要 Bet 方向'
+    }
+  ],
+  B: [
+    {
+      num:1, theme:'EM 個別訪談',
+      problem:'新體制下，EM 自己怎麼定義成功？他們最擔心的是什麼？',
+      tasks:['個別訪談 2–3 位 EM（各 30 分鐘）','問題聚焦：新體制下你怎麼知道自己表現好不好？最擔心的是什麼？','請 Jeff 本週告知 Reiny 試驗方向'],
+      output:'EM 訪談記錄（逐字稿或摘要）',
+      jeff:'📋 W1 進度更新\n✅ 本週完成：HR EM 轉型試驗啟動，完成 ___ 位 EM 訪談\n🔍 初步發現：EM 最擔心的是___，對新角色最期待的是___\n📅 下週計畫：整理訪談，設計角色描述草稿\n❓需要你決定：Reiny 溝通時機，建議本週內打招呼'
+    },
+    {
+      num:2, theme:'角色描述草稿',
+      problem:'Squad OS 設計者的角色，能不能用具體的行為和產出來描述？',
+      tasks:['整理訪談，找出共同痛點和期待','設計「Squad OS 設計者」角色描述草稿（不由上而下強加）','初步分類：偏向轉型的 EM vs. 需要支持的 EM'],
+      output:'角色描述草稿 v0.1 + EM 分類初稿',
+      jeff:'📋 W2 進度更新\n✅ 本週完成：EM 新角色描述草稿\n📊 新角色三個核心維度：___\n🔍 EM 分類初稿：___ 位偏向轉型，___ 位需要支持\n📅 下週：與 EM 共設計成功指標\n❓需要你確認：角色描述方向是否對齊你的期待？'
+    },
+    {
+      num:3, theme:'共設計工作坊',
+      problem:'讓 EM 自己說出成功標準，而不是 HR 告訴他們。',
+      tasks:['與 2–3 位 EM 進行共設計工作坊（1–1.5 小時）','聚焦三個維度：Squad 自治健康度 / AI 工具鏈導入 / 跨 Squad blocker 清除速度','記錄 EM 自己說出的成功標準'],
+      output:'EM 共設計成功指標草案（EM 自己說出來的版本）',
+      jeff:'📋 W3 進度更新\n✅ 本週完成：EM 共設計工作坊\n📊 EM 定義的成功標準：___\n💬 最有共識的部分：___\n🔧 還有爭議的部分：___\n📅 下週：設計配套（薪酬保障期 + 退出選項）\n❓需要你確認：成功指標的方向，你認同嗎？'
+    },
+    {
+      num:4, theme:'配套設計',
+      problem:'薪酬保障期設多久？轉型不適應怎麼辦？',
+      tasks:['設計薪酬保障期方案（轉型期不降薪，多久？）','設計退出選項（轉型不適應的路徑）','向個別 EM 說明草案，收集反應'],
+      output:'配套方案草稿 + EM 個別反應記錄',
+      jeff:'📋 W4 進度更新\n✅ 本週完成：配套方案草稿設計\n📊 薪酬保障期方案：___\n💬 EM 對配套方案的反應：___\n❓需要你決定：薪酬保障期的上限，需要你拍板'
+    },
+    {
+      num:5, theme:'修訂與 Reiny 同步',
+      problem:'Reiny 的邊界在哪裡？哪些可以推進，哪些需要等？',
+      tasks:['根據 EM 回饋修訂框架','確認「需要支持的 EM」的個別方案','向 Reiny 同步草案（定調：試驗，非正式頒布）'],
+      output:'修訂版框架 + Reiny 回饋記錄',
+      jeff:'📋 W5 進度更新\n✅ 本週完成：框架修訂 + 向 Reiny 同步\n💬 Reiny 的反應：___\n✅ 他認可的部分：___\n⚠️ 他的紅線是：___\n📅 下週：完成草案，準備 Retro'
+    },
+    {
+      num:6, theme:'Retro 與下一步',
+      problem:'EM 轉型的第一輪試驗學到了什麼？',
+      tasks:['完成 EM 轉型框架草案','與 Jeff 召開六週 Retro','決定下一輪方向'],
+      output:'EM 轉型框架草案 + Retro 記錄',
+      jeff:'📋 W6 Retro 摘要\n✅ 六週完成：___\n📊 最重要的學習：___\n🎯 建議下一步：___\n❓需要你決定：下一輪的主要 Bet'
+    }
+  ],
+  C: [
+    {
+      num:1, theme:'使命對齊評估問題設計',
+      problem:'什麼樣的問題能在面試中篩出使命對齊度？',
+      tasks:['設計 2–3 個使命對齊評估問題 + 評分標準','Reiny 確認門檻設定','設計面試主管 briefing 方式（一頁說明）'],
+      output:'評估問題清單 + 評分標準 + 主管 briefing 文件',
+      jeff:'📋 W1 進度更新\n✅ 本週完成：招募使命對齊評估問題設計完成\n📄 評估問題：___（最重要的一題）\n📅 下週：嵌入招募流程，面試主管開始使用\n❓需要你知道：這是 Small Bet，兩週就有資料回來'
+    },
+    {
+      num:2, theme:'上線與觀察',
+      problem:'面試主管實際使用後，評分標準是否清楚？',
+      tasks:['更新面試評估表格，加入使命對齊欄位','通知面試主管開始使用（附 briefing 文件）','設定回饋收集機制（面試後填寫觀察）'],
+      output:'使命對齊維度正式嵌入招募流程',
+      jeff:'📋 W2 進度更新\n✅ 本週完成：使命對齊評估已上線\n📊 首批使用：___ 個面試，___ 位主管回饋\n💬 主要回饋：___\n📅 接下來：收集 2–4 週資料後，決定六週主 Bet 方向\n❓需要你決定：六週主 Bet 的方向，建議下週討論'
+    },
+    {
+      num:3, theme:'資料收集與主 Bet 決策',
+      problem:'資料說了什麼？這六週應該投注在哪個方向？',
+      tasks:['彙整首批評估資料','分析：使命對齊高 vs. 低的候選人有什麼差異？','準備主 Bet 提案，與 Jeff 討論'],
+      output:'招募使命對齊分析報告 + 主 Bet 提案',
+      jeff:'📋 W3 分析報告\n📊 首批資料：___ 個面試，使命對齊平均分：___\n🔍 發現：___\n🎯 建議主 Bet 方向：___\n❓需要你決定：這六週的主 Bet，本週需要拍板'
+    },
+    { num:4, theme:'主 Bet 啟動（依 Jeff 決定的方向）', problem:'主 Bet 第一週：問題確認。', tasks:['（依選定的主 Bet 方向填入）'], output:'（依選定的主 Bet 方向填入）', jeff:'（依選定主 Bet 後更新）' },
+    { num:5, theme:'主 Bet 推進', problem:'主 Bet 第二週推進中。', tasks:['（依選定的主 Bet 方向填入）'], output:'（依選定的主 Bet 方向填入）', jeff:'（依選定主 Bet 後更新）' },
+    { num:6, theme:'Retro 與下一步', problem:'學到了什麼？下一步怎麼辦？', tasks:['完成當輪草案','Jeff Retro','決定下一輪方向'], output:'Retro 記錄 + 下一輪方向', jeff:'📋 W6 Retro\n✅ 六週完成：___\n📊 最重要的學習：___\n🎯 下一步：___' }
+  ]
+};
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+
+let state = {
+  priorities: { define:null, recognize:null, transform:null, enter:null },
+  selectedBet: null,
+  addonRecruit: false,
+  currentWeek: 1,
+  taskStatuses: {}, // key: "betId-weekNum-taskIdx", value: 'none'|'in-progress'|'done'|'blocked'
+  openWeeks: {},    // key: weekNum, value: bool
+  editableContent: {
+    rootQ: null,
+    jeffFormats: {} // key: "betId-weekNum", value: string
+  }
+};
+
+const STATUS_CYCLE = ['none','in-progress','done','blocked'];
+const STATUS_ICONS = { none:'', 'in-progress':'◎', done:'✓', blocked:'✕' };
+const STATUS_CLASSES = { none:'', 'in-progress':'in-progress', done:'done', blocked:'blocked' };
+
+// ─ Storage ─
+async function saveState() {
+  try {
+    await window.storage.set('hr-tracker-state', JSON.stringify(state));
+    const ind = document.getElementById('saveIndicator');
+    ind.classList.add('show');
+    setTimeout(() => ind.classList.remove('show'), 1500);
+  } catch(e) {}
+}
+
+async function loadState() {
+  try {
+    const result = await window.storage.get('hr-tracker-state');
+    if (result && result.value) {
+      const saved = JSON.parse(result.value);
+      state = { ...state, ...saved };
+    }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+
+function renderAll() {
+  renderClusters();
+  renderBetCards();
+  renderDecisionSummary();
+  renderWeekCards();
+  renderJeffSync();
+  updateAddonCheck();
+  document.getElementById('currentWeekSelect').value = state.currentWeek;
+  updateWeekSelector();
+}
+
+// ─ Clusters ─
+function renderClusters() {
+  const container = document.getElementById('clusterList');
+  container.innerHTML = CLUSTERS.map(c => {
+    const p = state.priorities[c.id];
+    return `<div class="cs-row ${p ? 'prio-'+p : ''}" id="csrow-${c.id}">
+      <span class="cs-icon">${c.icon}</span>
+      <div class="cs-text">
+        <h4>${c.title}</h4>
+        <p>${c.desc}</p>
+      </div>
+      <div class="cs-prio-btns">
+        <button class="cpb ${p==='urgent'?'sel-urgent':''}" onclick="setPriority('${c.id}','urgent')">🔴 最痛</button>
+        <button class="cpb ${p==='important'?'sel-important':''}" onclick="setPriority('${c.id}','important')">🟡 重要</button>
+        <button class="cpb ${p==='later'?'sel-later':''}" onclick="setPriority('${c.id}','later')">⚪ 先放</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─ Bets ─
+function renderBetCards() {
+  const urgent = Object.entries(state.priorities).find(([k,v]) => v==='urgent');
+  const sugMap = { define:'A', recognize:'A', transform:'B', enter:'C' };
+  const sug = urgent ? sugMap[urgent[0]] : null;
+
+  document.getElementById('betCards').innerHTML = BETS.map(b => {
+    const sel = state.selectedBet === b.id;
+    const isSug = sug === b.id && !state.selectedBet;
+    return `<div class="bet-card${sel?' selected':''}${isSug?' suggested':''}" onclick="selectBet('${b.id}')">
+      <div class="bc-check">✓</div>
+      <div class="sug-badge">建議</div>
+      <div class="bc-label">${b.label}</div>
+      <h3>${b.title}</h3>
+      <p>${b.desc}</p>
+    </div>`;
+  }).join('');
+
+  const hint = document.getElementById('betSuggestionText');
+  if (sug && !state.selectedBet) hint.textContent = `— 根據優先序建議情境 ${sug}，你來決定`;
+  else hint.textContent = '';
+}
+
+// ─ Decision summary ─
+function renderDecisionSummary() {
+  const betNames = { A:'情境 A — 定義好表現標準（6W）', B:'情境 B — EM 轉型共設計（6W）', C:'情境 C — 招募先行（2W）' };
+  const urgents = Object.entries(state.priorities).filter(([k,v]) => v==='urgent');
+  const clusterShort = { define:'定義問題', recognize:'辨識問題', transform:'轉型問題', enter:'進入問題' };
+
+  const betEl = document.getElementById('ds-bet');
+  betEl.textContent = state.selectedBet ? betNames[state.selectedBet] : '尚未選擇';
+  betEl.className = 'di-val' + (state.selectedBet ? ' filled' : '');
+
+  const urgEl = document.getElementById('ds-urgent');
+  urgEl.textContent = urgents.length ? urgents.map(([k]) => clusterShort[k]).join('、') : '尚未標記';
+  urgEl.className = 'di-val' + (urgents.length ? ' filled' : '');
+
+  const addEl = document.getElementById('ds-addon');
+  addEl.textContent = state.addonRecruit ? '是，本週並行開工' : '否';
+  addEl.className = 'di-val' + (state.addonRecruit ? ' filled' : '');
+
+  document.getElementById('ds-week').textContent = 'W' + state.currentWeek;
+}
+
+// ─ Week cards ─
+function renderWeekCards() {
+  const bet = state.selectedBet;
+  const planTitle = document.getElementById('planTitle');
+  const planBetTag = document.getElementById('planBetTag');
+
+  if (!bet) {
+    planTitle.textContent = '請先在「問題與決議」頁面選擇 Bet 方向';
+    planBetTag.textContent = '-';
+    document.getElementById('weekCards').innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink4);">請先選擇 Bet 方向</div>';
+    return;
+  }
+
+  const betTitles = { A:'定義好表現標準', B:'EM 角色轉型共設計', C:'招募先行 + 主 Bet 決策' };
+  planTitle.textContent = '情境 ' + bet + ' — ' + betTitles[bet];
+  planBetTag.textContent = bet === 'C' ? 'Small Bet + Big Bet' : 'Big Bet · 6W';
+
+  const weeks = WEEKS_DATA[bet];
+  let totalTasks = 0, doneTasks = 0;
+  weeks.forEach((w, wi) => {
+    w.tasks.forEach((t, ti) => {
+      totalTasks++;
+      const key = bet+'-'+w.num+'-'+ti;
+      if (state.taskStatuses[key] === 'done') doneTasks++;
+    });
+  });
+
+  const pct = totalTasks ? Math.round(doneTasks/totalTasks*100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = pct + '%';
+
+  document.getElementById('weekCards').innerHTML = weeks.map((w) => {
+    const isCurrent = w.num === parseInt(state.currentWeek);
+    const isOpen = state.openWeeks[w.num] !== false ? isCurrent : state.openWeeks[w.num];
+    const openState = state.openWeeks[w.num] !== undefined ? state.openWeeks[w.num] : isCurrent;
+
+    let wDone = 0;
+    const taskHTML = w.tasks.map((t, ti) => {
+      const key = bet+'-'+w.num+'-'+ti;
+      const status = state.taskStatuses[key] || 'none';
+      if (status === 'done') wDone++;
+      return `<div class="task-row">
+        <div class="task-status ${STATUS_CLASSES[status]}" onclick="cycleStatus('${key}',this)">${STATUS_ICONS[status]}</div>
+        <div class="task-text${status==='done'?' done-text':''}" contenteditable="false" data-editable="task-${key}">${t}</div>
+      </div>`;
+    }).join('');
+
+    const jeffKey = bet+'-'+w.num;
+    const jeffText = state.editableContent.jeffFormats[jeffKey] || w.jeff;
+
+    return `<div class="week-card${isCurrent?' current-week':''}${openState?' open':''}" id="wc-${w.num}">
+      <div class="wc-header" onclick="toggleWeek(${w.num})">
+        <div class="wc-num">${w.num}</div>
+        <div>
+          <div class="wc-title">W${w.num} · ${w.theme}</div>
+          <div class="wc-sub">${isCurrent ? '📍 目前進行中' : ''}</div>
+        </div>
+        <div class="wc-right">
+          <span class="wc-progress">${wDone}/${w.tasks.length}</span>
+          <span class="wc-chevron">▾</span>
+        </div>
+      </div>
+      <div class="wc-body">
+        <div class="wc-section">
+          <div class="wc-sec-label">這週要解決的問題</div>
+          <div class="wc-problem-text" contenteditable="false" data-editable="problem-${bet}-${w.num}">${w.problem}</div>
+        </div>
+        <div class="wc-section">
+          <div class="wc-sec-label">具體任務</div>
+          <div class="task-list">${taskHTML}</div>
+        </div>
+        <div class="wc-section">
+          <div class="wc-sec-label">本週產出（Done 的定義）</div>
+          <div class="wc-output" contenteditable="false" data-editable="output-${bet}-${w.num}">${w.output}</div>
+        </div>
+        <div class="wc-section">
+          <div class="wc-sec-label">告訴 Jeff 的方式</div>
+          <div class="jeff-box">
+            <div class="jb-label">本週同步格式</div>
+            <div class="jeff-format" contenteditable="false" data-editable="jeff-${jeffKey}">${jeffText}</div>
+            <div class="jeff-actions">
+              <button class="copy-btn" onclick="copyJeff('jeff-${jeffKey}',this)">複製</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Apply edit mode if active
+  if (document.body.classList.contains('edit-mode')) enableEditables();
+}
+
+// ─ Jeff Sync tab ─
+function renderJeffSync() {
+  const bet = state.selectedBet;
+  const container = document.getElementById('jeffSyncBlocks');
+  if (!bet) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink4);">請先選擇 Bet 方向</div>';
+    return;
+  }
+
+  const weeks = WEEKS_DATA[bet];
+  const cw = parseInt(state.currentWeek);
+
+  container.innerHTML = weeks.filter(w => w.num <= cw).reverse().map(w => {
+    const jeffKey = bet+'-'+w.num;
+    const jeffText = state.editableContent.jeffFormats[jeffKey] || w.jeff;
+    const isCurrent = w.num === cw;
+    return `<div class="sync-block">
+      <div class="sb-header">
+        <span class="sb-title">W${w.num} · ${w.theme}</span>
+        <span class="sb-week-tag">${isCurrent ? '📍 本週' : 'W'+w.num}</span>
+      </div>
+      <div class="sb-body">
+        <div class="sync-template" contenteditable="false" data-editable="jeff-${jeffKey}">${jeffText}</div>
+        <div class="sync-actions">
+          <button class="sync-btn primary" onclick="copyJeff('jeff-${jeffKey}',this)">複製文字</button>
+          <button class="sync-btn" onclick="alert('可以截圖這個區塊，或複製文字後貼到 Slack / Confluence')">如何分享</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (document.body.classList.contains('edit-mode')) enableEditables();
+}
+
+// ═══════════════════════════════════════════════
+// INTERACTIONS
+// ═══════════════════════════════════════════════
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const idx = ['t1','t2','t3'].indexOf(id);
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  if (id === 't2' || id === 't3') { renderWeekCards(); renderJeffSync(); }
+}
+
+function setPriority(cluster, level) {
+  state.priorities[cluster] = level;
+  renderClusters(); renderBetCards(); renderDecisionSummary();
+  saveState();
+}
+
+function selectBet(bet) {
+  state.selectedBet = bet;
+  renderBetCards(); renderDecisionSummary(); renderWeekCards(); renderJeffSync();
+  saveState();
+}
+
+function toggleAddon() {
+  state.addonRecruit = !state.addonRecruit;
+  updateAddonCheck(); renderDecisionSummary();
+  saveState();
+}
+function updateAddonCheck() {
+  const el = document.getElementById('addonCheck');
+  el.className = 'addon-check' + (state.addonRecruit ? ' checked' : '');
+  el.textContent = state.addonRecruit ? '✓' : '';
+}
+
+function setCurrentWeek(w) {
+  state.currentWeek = parseInt(w);
+  renderDecisionSummary(); renderWeekCards(); renderJeffSync();
+  updateWeekSelector();
+  saveState();
+}
+function updateWeekSelector() {
+  document.getElementById('currentWeekSelect').value = state.currentWeek;
+}
+
+function toggleWeek(num) {
+  state.openWeeks[num] = !state.openWeeks[num];
+  const card = document.getElementById('wc-'+num);
+  if (card) card.classList.toggle('open', state.openWeeks[num]);
+  saveState();
+}
+
+function cycleStatus(key, el) {
+  const cur = state.taskStatuses[key] || 'none';
+  const nextIdx = (STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length;
+  const next = STATUS_CYCLE[nextIdx];
+  state.taskStatuses[key] = next;
+  el.className = 'task-status ' + (STATUS_CLASSES[next] || '');
+  el.textContent = STATUS_ICONS[next] || '';
+  const taskText = el.nextElementSibling;
+  if (taskText) taskText.className = 'task-text' + (next==='done'?' done-text':'');
+  updateProgress();
+  saveState();
+}
+
+function updateProgress() {
+  const bet = state.selectedBet;
+  if (!bet) return;
+  const weeks = WEEKS_DATA[bet];
+  let total = 0, done = 0;
+  weeks.forEach(w => w.tasks.forEach((t,ti) => {
+    total++;
+    if (state.taskStatuses[bet+'-'+w.num+'-'+ti] === 'done') done++;
+  }));
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('progressBar').style.width = pct+'%';
+  document.getElementById('progressText').textContent = pct+'%';
+  document.querySelectorAll('.wc-progress').forEach((el, i) => {
+    const w = weeks[i];
+    if (!w) return;
+    let wd = 0;
+    w.tasks.forEach((t,ti) => { if (state.taskStatuses[bet+'-'+w.num+'-'+ti]==='done') wd++; });
+    el.textContent = wd+'/'+w.tasks.length;
+  });
+}
+
+function copyJeff(dataEditableKey, btn) {
+  const el = document.querySelector('[data-editable="'+dataEditableKey+'"]');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    btn.textContent = '已複製 ✓'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = btn.classList.contains('sync-btn') ? '複製文字' : '複製'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ─ Edit mode ─
+let editMode = false;
+function toggleEdit() {
+  editMode = !editMode;
+  const btn = document.getElementById('editBtn');
+  btn.textContent = editMode ? '✓ 完成編輯' : '✏ 編輯模式';
+  btn.className = 'edit-btn' + (editMode ? ' active' : '');
+  document.body.classList.toggle('edit-mode', editMode);
+  if (editMode) enableEditables();
+  else disableEditables();
+}
+
+function enableEditables() {
+  document.querySelectorAll('[contenteditable]').forEach(el => {
+    el.contentEditable = 'true';
+    el.addEventListener('blur', onEditableBlur);
+  });
+}
+
+function disableEditables() {
+  document.querySelectorAll('[contenteditable]').forEach(el => {
+    el.contentEditable = 'false';
+    el.removeEventListener('blur', onEditableBlur);
+  });
+}
+
+function onEditableBlur(e) {
+  const el = e.target;
+  const key = el.getAttribute('data-editable');
+  if (!key) return;
+  const text = el.textContent;
+
+  if (key === 'rootQ') {
+    state.editableContent.rootQ = text;
+  } else if (key.startsWith('jeff-')) {
+    const jeffKey = key.replace('jeff-','');
+    state.editableContent.jeffFormats[jeffKey] = text;
+    // Sync across both tabs
+    document.querySelectorAll('[data-editable="'+key+'"]').forEach(other => {
+      if (other !== el) other.textContent = text;
+    });
+  } else if (key.startsWith('problem-') || key.startsWith('output-') || key.startsWith('task-')) {
+    if (!state.editableContent.customText) state.editableContent.customText = {};
+    state.editableContent.customText[key] = text;
+  }
+  saveState();
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+
+async function init() {
+  await loadState();
+  // Restore open weeks: default current week open
+  if (Object.keys(state.openWeeks).length === 0) {
+    state.openWeeks[state.currentWeek] = true;
+  }
+  renderAll();
+}
+
+init();
+</script>
+</body>
+</html>
